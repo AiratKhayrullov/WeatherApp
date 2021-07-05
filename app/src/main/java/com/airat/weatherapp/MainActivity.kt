@@ -1,16 +1,20 @@
 package com.airat.weatherapp
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.location.Location
 import android.location.LocationManager
 import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.os.Looper
 import android.provider.Settings
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import com.google.android.gms.location.*
 import com.karumi.dexter.Dexter
 import com.karumi.dexter.MultiplePermissionsReport
 import com.karumi.dexter.PermissionToken
@@ -19,10 +23,12 @@ import com.karumi.dexter.listener.multi.MultiplePermissionsListener
 import java.lang.Exception
 
 class MainActivity : AppCompatActivity() {
+    private lateinit var mFusedLocationClient : FusedLocationProviderClient
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        
+        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
         if (!isLocationEnabled()){
             Toast.makeText(this, "Your location provider is turned off. Please turn it on", Toast.LENGTH_SHORT).show()
             val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
@@ -66,13 +72,33 @@ class MainActivity : AppCompatActivity() {
                 .setNegativeButton("Cancel"){ dialog, _ ->
                     dialog.dismiss()
 
-                }
+                }.show()
 
 
     }
 
+    @SuppressLint("MissingPermission")
     private fun requestLocationData() {
+        val mLocationRequest = LocationRequest()
+        mLocationRequest.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+        mFusedLocationClient.requestLocationUpdates(
+             mLocationRequest,
+            mLocationCallback,
+            Looper.myLooper()
+        )
 
+    }
+
+    private val mLocationCallback = object : LocationCallback(){
+        override fun onLocationResult(locationResult: LocationResult) {
+            val mLastLocation: Location = locationResult.lastLocation
+            val latitude = mLastLocation.latitude
+            val longitude = mLastLocation.longitude
+        }
+
+        override fun onLocationAvailability(p0: LocationAvailability) {
+            super.onLocationAvailability(p0)
+        }
     }
 
     private fun isLocationEnabled(): Boolean {
