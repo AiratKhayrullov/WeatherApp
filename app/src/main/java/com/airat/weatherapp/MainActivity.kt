@@ -20,7 +20,6 @@ import com.karumi.dexter.MultiplePermissionsReport
 import com.karumi.dexter.PermissionToken
 import com.karumi.dexter.listener.PermissionRequest
 import com.karumi.dexter.listener.multi.MultiplePermissionsListener
-import java.lang.Exception
 
 class MainActivity : AppCompatActivity() {
     private lateinit var mFusedLocationClient : FusedLocationProviderClient
@@ -54,6 +53,18 @@ class MainActivity : AppCompatActivity() {
             }).onSameThread().check()
         }
     }
+
+    private fun getLocationWeatherDetails(){
+        if(Constants.isNetworkAvailable(this)){
+            Toast.makeText(this@MainActivity, "You've connected to the internet", Toast.LENGTH_SHORT).show()
+        } else{
+            Toast.makeText(this@MainActivity, "No internet connection available", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+
+
+
 
     private fun showRationalDialogForPermissions() {
         AlertDialog.Builder(this)
@@ -94,10 +105,7 @@ class MainActivity : AppCompatActivity() {
             val mLastLocation: Location = locationResult.lastLocation
             val latitude = mLastLocation.latitude
             val longitude = mLastLocation.longitude
-        }
-
-        override fun onLocationAvailability(p0: LocationAvailability) {
-            super.onLocationAvailability(p0)
+            getLocationWeatherDetails()
         }
     }
 
