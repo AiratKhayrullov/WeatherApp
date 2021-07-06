@@ -17,6 +17,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.airat.weatherapp.R
+import com.airat.weatherapp.databinding.ActivityMainBinding
 import com.airat.weatherapp.network.WeatherService
 import com.airat.weatherapp.utils.Constants
 import com.google.android.gms.location.*
@@ -28,15 +29,19 @@ import com.karumi.dexter.listener.multi.MultiplePermissionsListener
 import com.weatherapp.models.WeatherResponse
 import retrofit2.*
 import retrofit2.converter.gson.GsonConverterFactory
+import java.text.SimpleDateFormat
+import java.util.*
 
 class MainActivity : AppCompatActivity() {
 
+    private lateinit var binding: ActivityMainBinding
     private lateinit var mFusedLocationClient : FusedLocationProviderClient
     private var mProgressDialog: Dialog? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
         if (!isLocationEnabled()){
@@ -82,6 +87,7 @@ class MainActivity : AppCompatActivity() {
                    if (response.isSuccessful){
                        hideCustomProgressDialog()
                        val weatherList: WeatherResponse = response.body()!!
+                        setupUI(weatherList)
                        Log.d("Response Result", "$weatherList")
 
                    } else{
@@ -168,6 +174,60 @@ class MainActivity : AppCompatActivity() {
         if (mProgressDialog != null){
             mProgressDialog!!.dismiss()
         }
+    }
+
+    private fun setupUI(weatherList: WeatherResponse){
+        for(i in weatherList.weather.indices){
+            binding.run {
+                tvMain.text = weatherList.weather[i].main
+                tvMainDescription.text = weatherList.weather[i].description
+                tvTemp.text = weatherList.main.temp.toString() + getUnit(application.resources.configuration.locales.toString())
+                tvSunriseTime.text = unixTime(weatherList.sys.sunrise.toLong())
+                tvSunsetTime.text = unixTime(weatherList.sys.sunset.toLong())
+                tvHumidity.text = weatherList.main.humidity.toString() + " per cent"
+                tvMin.text = weatherList.main.temp_min.toString() + " min"
+                tvMax.text = weatherList.main.temp_max.toString() + " max"
+                tvSpeed.text = weatherList.wind.speed.toString()
+                tvName.text = weatherList.name
+                tvCountry.text = weatherList.sys.country
+
+
+                // Here we update the main icon
+                when (weatherList.weather[i].icon) {
+                    "01d" -> ivMain.setImageResource(R.drawable.sunny)
+                    "02d" -> ivMain.setImageResource(R.drawable.cloud)
+                    "03d" -> ivMain.setImageResource(R.drawable.cloud)
+                    "04d" -> ivMain.setImageResource(R.drawable.cloud)
+                    "04n" -> ivMain.setImageResource(R.drawable.cloud)
+                    "10d" -> ivMain.setImageResource(R.drawable.rain)
+                    "11d" -> ivMain.setImageResource(R.drawable.storm)
+                    "13d" -> ivMain.setImageResource(R.drawable.snowflake)
+                    "01n" -> ivMain.setImageResource(R.drawable.cloud)
+                    "02n" -> ivMain.setImageResource(R.drawable.cloud)
+                    "03n" -> ivMain.setImageResource(R.drawable.cloud)
+                    "10n" -> ivMain.setImageResource(R.drawable.cloud)
+                    "11n" -> ivMain.setImageResource(R.drawable.rain)
+                    "13n" -> ivMain.setImageResource(R.drawable.snowflake)
+                }
+
+            }
+        }
+    }
+
+    private fun getUnit(value: String): String{
+        var value = "°С"
+        if ("US" == value || "LR" == value || "MM" == value){
+            value = "°F"
+        }
+        return value
+    }
+
+    private fun unixTime(timex: Long): String? {
+        val date = Date(timex * 1000L)
+        @SuppressLint("SimpleDateFormat")
+        val sdf = SimpleDateFormat("HH:mm")
+        sdf.timeZone = TimeZone.getDefault()
+        return sdf.format(date)
     }
 
 }
