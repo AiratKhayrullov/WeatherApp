@@ -14,6 +14,8 @@ import android.os.Bundle
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
+import android.view.Menu
+import android.view.MenuItem
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.airat.weatherapp.R
@@ -37,7 +39,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var mFusedLocationClient : FusedLocationProviderClient
     private var mProgressDialog: Dialog? = null
-
+    private var latitude: Double = 0.toDouble()
+    private var longitude : Double = 0.toDouble()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -70,7 +73,24 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun getLocationWeatherDetails(latitude: Double, longitude: Double){
+
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.menu_main, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_refresh -> {
+                getLocationWeatherDetails()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    private fun getLocationWeatherDetails(){
 
 
         if(Constants.isNetworkAvailable(this)){
@@ -154,9 +174,9 @@ class MainActivity : AppCompatActivity() {
     private val mLocationCallback = object : LocationCallback(){
         override fun onLocationResult(locationResult: LocationResult) {
             val mLastLocation: Location = locationResult.lastLocation
-            val latitude = mLastLocation.latitude
-            val longitude = mLastLocation.longitude
-            getLocationWeatherDetails(latitude, longitude)
+            latitude = mLastLocation.latitude
+            longitude = mLastLocation.longitude
+            getLocationWeatherDetails()
         }
     }
 
