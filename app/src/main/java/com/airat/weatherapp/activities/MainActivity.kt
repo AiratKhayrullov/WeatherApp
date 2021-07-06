@@ -6,6 +6,7 @@ import android.app.Dialog
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.location.Location
 import android.location.LocationManager
 import android.net.Uri
@@ -23,6 +24,7 @@ import com.airat.weatherapp.databinding.ActivityMainBinding
 import com.airat.weatherapp.network.WeatherService
 import com.airat.weatherapp.utils.Constants
 import com.google.android.gms.location.*
+import com.google.gson.Gson
 import com.karumi.dexter.Dexter
 import com.karumi.dexter.MultiplePermissionsReport
 import com.karumi.dexter.PermissionToken
@@ -41,38 +43,55 @@ class MainActivity : AppCompatActivity() {
     private var mProgressDialog: Dialog? = null
     private var latitude: Double = 0.toDouble()
     private var longitude : Double = 0.toDouble()
+    private lateinit var sp : SharedPreferences
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        sp = getSharedPreferences(Constants.PREFERENCE_NAME, Context.MODE_PRIVATE)
+        setupUI()
 
-        if (!isLocationEnabled()){
-            Toast.makeText(this, "Your location provider is turned off. Please turn it on", Toast.LENGTH_SHORT).show()
+        initLocationsAndPermissions()
+    }
+
+    private fun initLocationsAndPermissions() {
+        if (!isLocationEnabled()) {
+            Toast.makeText(
+                this,
+                "Your location provider is turned off. Please turn it on",
+                Toast.LENGTH_SHORT
+            ).show()
             val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
             startActivity(intent)
         } else {
             Dexter.withActivity(this).withPermissions(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
             ).withListener(object : MultiplePermissionsListener {
                 override fun onPermissionsChecked(report: MultiplePermissionsReport?) {
                     if (report!!.areAllPermissionsGranted()) {
                         requestLocationData()
                     }
                     if (report.isAnyPermissionPermanentlyDenied) {
-                        Toast.makeText(this@MainActivity, "You've denied location permission", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            this@MainActivity,
+                            "You've denied location permission",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                 }
 
-                override fun onPermissionRationaleShouldBeShown(permissions: MutableList<PermissionRequest>?, token: PermissionToken?) {
+                override fun onPermissionRationaleShouldBeShown(
+                    permissions: MutableList<PermissionRequest>?,
+                    token: PermissionToken?
+                ) {
                     showRationalDialogForPermissions()
                 }
 
             }).onSameThread().check()
         }
     }
-
 
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -89,6 +108,7 @@ class MainActivity : AppCompatActivity() {
             else -> super.onOptionsItemSelected(item)
         }
     }
+
 
     private fun getLocationWeatherDetails(){
 
@@ -107,7 +127,11 @@ class MainActivity : AppCompatActivity() {
                    if (response.isSuccessful){
                        hideCustomProgressDialog()
                        val weatherList: WeatherResponse = response.body()!!
-                        setupUI(weatherList)
+                       val weatherResponseJsonString = Gson().toJson(weatherList)
+                       val editor = sp.edit()
+                       editor.putString(Constants.WEATHER_RESPONSE_DATA, weatherResponseJsonString)
+                       editor.apply()
+                       setupUI()
                        Log.d("Response Result", "$weatherList")
 
                    } else{
@@ -196,42 +220,47 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupUI(weatherList: WeatherResponse){
-        for(i in weatherList.weather.indices){
-            binding.run {
-                tvMain.text = weatherList.weather[i].main
-                tvMainDescription.text = weatherList.weather[i].description
-                tvTemp.text = weatherList.main.temp.toString() + getUnit(application.resources.configuration.locales.toString())
-                tvSunriseTime.text = unixTime(weatherList.sys.sunrise.toLong())
-                tvSunsetTime.text = unixTime(weatherList.sys.sunset.toLong())
-                tvHumidity.text = weatherList.main.humidity.toString() + " per cent"
-                tvMin.text = weatherList.main.temp_min.toString() + " min"
-                tvMax.text = weatherList.main.temp_max.toString() + " max"
-                tvSpeed.text = weatherList.wind.speed.toString()
-                tvName.text = weatherList.name
-                tvCountry.text = weatherList.sys.country
+    private fun setupUI(){
+        val weatherResponseJsonString = sp.getString(Constants.WEATHER_RESPONSE_DATA, "")
+        if (!weatherResponseJsonString.isNullOrEmpty()){
+            val weatherList = Gson().fromJson(weatherResponseJsonString, WeatherResponse::class.java)
+            for(i in weatherList.weather.indices){
+                binding.run {
+                    tvMain.text = weatherList.weather[i].main
+                    tvMainDescription.text = weatherList.weather[i].description
+                    tvTemp.text = weatherList.main.temp.toString() + getUnit(application.resources.configuration.locales.toString())
+                    tvSunriseTime.text = unixTime(weatherList.sys.sunrise.toLong())
+                    tvSunsetTime.text = unixTime(weatherList.sys.sunset.toLong())
+                    tvHumidity.text = weatherList.main.humidity.toString() + " per cent"
+                    tvMin.text = weatherList.main.temp_min.toString() + " min"
+                    tvMax.text = weatherList.main.temp_max.toString() + " max"
+                    tvSpeed.text = weatherList.wind.speed.toString()
+                    tvName.text = weatherList.name
+                    tvCountry.text = weatherList.sys.country
 
 
-                // Here we update the main icon
-                when (weatherList.weather[i].icon) {
-                    "01d" -> ivMain.setImageResource(R.drawable.sunny)
-                    "02d" -> ivMain.setImageResource(R.drawable.cloud)
-                    "03d" -> ivMain.setImageResource(R.drawable.cloud)
-                    "04d" -> ivMain.setImageResource(R.drawable.cloud)
-                    "04n" -> ivMain.setImageResource(R.drawable.cloud)
-                    "10d" -> ivMain.setImageResource(R.drawable.rain)
-                    "11d" -> ivMain.setImageResource(R.drawable.storm)
-                    "13d" -> ivMain.setImageResource(R.drawable.snowflake)
-                    "01n" -> ivMain.setImageResource(R.drawable.cloud)
-                    "02n" -> ivMain.setImageResource(R.drawable.cloud)
-                    "03n" -> ivMain.setImageResource(R.drawable.cloud)
-                    "10n" -> ivMain.setImageResource(R.drawable.cloud)
-                    "11n" -> ivMain.setImageResource(R.drawable.rain)
-                    "13n" -> ivMain.setImageResource(R.drawable.snowflake)
+                    // Here we update the main icon
+                    when (weatherList.weather[i].icon) {
+                        "01d" -> ivMain.setImageResource(R.drawable.sunny)
+                        "02d" -> ivMain.setImageResource(R.drawable.cloud)
+                        "03d" -> ivMain.setImageResource(R.drawable.cloud)
+                        "04d" -> ivMain.setImageResource(R.drawable.cloud)
+                        "04n" -> ivMain.setImageResource(R.drawable.cloud)
+                        "10d" -> ivMain.setImageResource(R.drawable.rain)
+                        "11d" -> ivMain.setImageResource(R.drawable.storm)
+                        "13d" -> ivMain.setImageResource(R.drawable.snowflake)
+                        "01n" -> ivMain.setImageResource(R.drawable.cloud)
+                        "02n" -> ivMain.setImageResource(R.drawable.cloud)
+                        "03n" -> ivMain.setImageResource(R.drawable.cloud)
+                        "10n" -> ivMain.setImageResource(R.drawable.cloud)
+                        "11n" -> ivMain.setImageResource(R.drawable.rain)
+                        "13n" -> ivMain.setImageResource(R.drawable.snowflake)
+                    }
+
                 }
-
             }
         }
+
     }
 
     private fun getUnit(value: String): String{
