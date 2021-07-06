@@ -1,4 +1,4 @@
-package com.airat.weatherapp
+package com.airat.weatherapp.utils
 
 import android.content.Context
 import android.net.ConnectivityManager
@@ -7,6 +7,13 @@ import android.net.NetworkCapabilities
 import android.os.Build
 
 object Constants {
+
+    const val APP_ID: String = "88f179bbc482f5509a6ffdb5c4c6c82f"
+    const val BASE_URL: String = "http://api.openweathermap.org/data/"
+    const val METRIC_UNIT: String = "metric"
+
+
+
     fun isNetworkAvailable(context: Context) : Boolean{
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){

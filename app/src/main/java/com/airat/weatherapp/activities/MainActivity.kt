@@ -1,7 +1,8 @@
-package com.airat.weatherapp
+package com.airat.weatherapp.activities
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Dialog
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -12,17 +13,27 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Looper
 import android.provider.Settings
+import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import com.airat.weatherapp.R
+import com.airat.weatherapp.network.WeatherService
+import com.airat.weatherapp.utils.Constants
 import com.google.android.gms.location.*
 import com.karumi.dexter.Dexter
 import com.karumi.dexter.MultiplePermissionsReport
 import com.karumi.dexter.PermissionToken
 import com.karumi.dexter.listener.PermissionRequest
 import com.karumi.dexter.listener.multi.MultiplePermissionsListener
+import com.weatherapp.models.WeatherResponse
+import retrofit2.*
+import retrofit2.converter.gson.GsonConverterFactory
 
 class MainActivity : AppCompatActivity() {
+
     private lateinit var mFusedLocationClient : FusedLocationProviderClient
+    private var mProgressDialog: Dialog? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -54,9 +65,43 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun getLocationWeatherDetails(){
+    private fun getLocationWeatherDetails(latitude: Double, longitude: Double){
+
+
         if(Constants.isNetworkAvailable(this)){
-            Toast.makeText(this@MainActivity, "You've connected to the internet", Toast.LENGTH_SHORT).show()
+            showCustomProgressDialog()
+
+            val retrofit: Retrofit = Retrofit.Builder()
+                .baseUrl(Constants.BASE_URL)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build()
+            val service: WeatherService = retrofit.create(WeatherService::class.java)
+            val listCall: Call<WeatherResponse> = service.getWeather(latitude, longitude, Constants.METRIC_UNIT, Constants.APP_ID)
+            listCall.enqueue(object : Callback<WeatherResponse>{
+                override fun onResponse(call: Call<WeatherResponse>, response: Response<WeatherResponse>) {
+                   if (response.isSuccessful){
+                       hideCustomProgressDialog()
+                       val weatherList: WeatherResponse = response.body()!!
+                       Log.d("Response Result", "$weatherList")
+
+                   } else{
+                       val rc = response.code()
+                       when(rc){
+                           400 -> Log.e("Error 400", "Bad Connection")
+                           404 -> Log.e("Error 404", "Not Found")
+                           else -> Log.e("Error", "Generic error")
+                       }
+                   }
+                }
+
+                override fun onFailure(call: Call<WeatherResponse>, t: Throwable) {
+                    hideCustomProgressDialog()
+
+                    Log.e("Errorrrrrr", t.message.toString())
+                }
+
+            })
+
         } else{
             Toast.makeText(this@MainActivity, "No internet connection available", Toast.LENGTH_SHORT).show()
         }
@@ -105,7 +150,7 @@ class MainActivity : AppCompatActivity() {
             val mLastLocation: Location = locationResult.lastLocation
             val latitude = mLastLocation.latitude
             val longitude = mLastLocation.longitude
-            getLocationWeatherDetails()
+            getLocationWeatherDetails(latitude, longitude)
         }
     }
 
@@ -113,4 +158,16 @@ class MainActivity : AppCompatActivity() {
         val locationManager: LocationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) || locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
     }
+
+    private fun showCustomProgressDialog(){
+        mProgressDialog = Dialog(this)
+        mProgressDialog!!.setContentView(R.layout.dialog_custom_progress)
+        mProgressDialog!!.show()
+    }
+    private fun hideCustomProgressDialog(){
+        if (mProgressDialog != null){
+            mProgressDialog!!.dismiss()
+        }
+    }
+
 }
