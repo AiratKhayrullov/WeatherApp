@@ -3,7 +3,7 @@
 Here you can see the weather where you are now
   
 ## Description
-This app was developed for learning way. You can really know some metrics about your your location in real time! 
+This app was developed for learning way. You can really know some metrics about your location in real time! 
 
 Such metrics as: 
 - Weather 
